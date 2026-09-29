@@ -1,0 +1,12 @@
+AI-WeatherWise API/
+│
+├── Project Architecture/
+│   └── architecture.md
+│
+├── ER Diagram/
+│   └── er-diagram.md
+│
+├── Backend/
+│   └── source-code/
+│
+└── Documentation/
