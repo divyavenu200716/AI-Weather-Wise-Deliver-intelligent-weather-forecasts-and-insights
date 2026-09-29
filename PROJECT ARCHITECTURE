@@ -1,0 +1,415 @@
+AI WeatherWise API — PROJECT ARCHITECTURE
+Based on the project shown in your SkillWallet screen, you can implement the Project Architecture section using a layered Node.js + Express + MongoDB backend with MVC separation.
+
+1. Recommended folder structure
+AI-WeatherWise-API/
+│
+├── src/
+│   ├── config/
+│   │   ├── db.js
+│   │   └── env.js
+│   │
+│   ├── controllers/
+│   │   └── weatherController.js
+│   │
+│   ├── middleware/
+│   │   ├── errorMiddleware.js
+│   │   └── requestLogger.js
+│   │
+│   ├── models/
+│   │   └── weatherModel.js
+│   │
+│   ├── routes/
+│   │   └── weatherRoutes.js
+│   │
+│   ├── services/
+│   │   ├── weatherService.js
+│   │   └── aiService.js
+│   │
+│   ├── utils/
+│   │   └── apiResponse.js
+│   │
+│   └── app.js
+│
+├── .env
+├── .env.example
+├── .gitignore
+├── package.json
+└── server.js
+
+Architecture flow
+Client
+  │
+  ▼
+Express Server
+  │
+  ▼
+Routes
+  │
+  ▼
+Middleware
+  │
+  ▼
+Controller
+  │
+  ▼
+Service Layer
+  ├──────────────► Weather API
+  │
+  ├──────────────► AI Service
+  │
+  ▼
+MongoDB
+  │
+  ▼
+JSON Response
+  │
+  ▼
+Client
+
+2. Create the project
+mkdir AI-WeatherWise-API
+cd AI-WeatherWise-API
+
+npm init -y
+
+npm install express mongoose dotenv axios cors
+npm install morgan
+npm install --save-dev nodemon
+
+Update package.json:
+
+{
+  "name": "ai-weatherwise-api",
+  "version": "1.0.0",
+  "description": "AI powered weather API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "axios": "^1.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.0",
+    "express": "^4.0.0",
+    "mongoose": "^8.0.0",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}
+
+3. Environment configuration
+.env
+PORT=5000
+
+MONGO_URI=mongodb://127.0.0.1:27017/weatherwise
+
+WEATHER_API_KEY=your_weather_api_key
+
+AI_API_KEY=your_ai_api_key
+
+.env.example
+PORT=5000
+MONGO_URI=
+WEATHER_API_KEY=
+AI_API_KEY=
+
+Never commit the real .env file.
+
+.gitignore
+node_modules/
+.env
+.DS_Store
+npm-debug.log
+
+4. Database configuration
+src/config/db.js
+const mongoose = require("mongoose");
+
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+
+    console.log("MongoDB connected successfully");
+  } catch (error) {
+    console.error("MongoDB connection failed:", error.message);
+    process.exit(1);
+  }
+};
+
+module.exports = connectDB;
+
+5. Weather model
+src/models/weatherModel.js
+const mongoose = require("mongoose");
+
+const weatherSchema = new mongoose.Schema(
+  {
+    city: {
+      type: String,
+      required: true,
+      trim: true
+    },
+
+    country: {
+      type: String,
+      trim: true
+    },
+
+    temperature: {
+      type: Number
+    },
+
+    humidity: {
+      type: Number
+    },
+
+    description: {
+      type: String
+    },
+
+    aiRecommendation: {
+      type: String
+    }
+  },
+  {
+    timestamps: true
+  }
+);
+
+module.exports = mongoose.model("Weather", weatherSchema);
+
+6. Weather service
+The service layer communicates with the external weather API.
+
+src/services/weatherService.js
+const axios = require("axios");
+
+const getWeatherFromAPI = async (city) => {
+  const url = "https://api.openweathermap.org/data/2.5/weather";
+
+  const response = await axios.get(url, {
+    params: {
+      q: city,
+      appid: process.env.WEATHER_API_KEY,
+      units: "metric"
+    }
+  });
+
+  return {
+    city: response.data.name,
+    country: response.data.sys.country,
+    temperature: response.data.main.temp,
+    humidity: response.data.main.humidity,
+    description: response.data.weather[0].description
+  };
+};
+
+module.exports = {
+  getWeatherFromAPI
+};
+
+7. AI service
+For the first version, you can keep the AI logic simple. Later you can connect an actual AI API.
+
+src/services/aiService.js
+const generateRecommendation = async (weather) => {
+  const { temperature, humidity, description } = weather;
+
+  let recommendation;
+
+  if (temperature >= 35) {
+    recommendation =
+      "It is very hot today. Stay hydrated and avoid prolonged exposure to direct sunlight.";
+  } else if (temperature <= 15) {
+    recommendation =
+      "The weather is cool. Consider wearing warm clothing when going outside.";
+  } else if (description.toLowerCase().includes("rain")) {
+    recommendation =
+      "Rain is expected. Carry an umbrella and consider waterproof clothing.";
+  } else {
+    recommendation =
+      "The weather looks comfortable. It should be a good time for outdoor activities.";
+  }
+
+  return recommendation;
+};
+
+module.exports = {
+  generateRecommendation
+};
+
+This gives you an AI-like recommendation layer for the initial project. You can replace this function later with an actual LLM API.
+
+8. Controller
+src/controllers/weatherController.js
+const Weather = require("../models/weatherModel");
+
+const {
+  getWeatherFromAPI
+} = require("../services/weatherService");
+
+const {
+  generateRecommendation
+} = require("../services/aiService");
+
+const getWeather = async (req, res, next) => {
+  try {
+    const { city } = req.query;
+
+    if (!city) {
+      return res.status(400).json({
+        success: false,
+        message: "City is required"
+      });
+    }
+
+    // Get weather information
+    const weather = await getWeatherFromAPI(city);
+
+    // Generate recommendation
+    const recommendation = await generateRecommendation(weather);
+
+    // Save result
+    const savedWeather = await Weather.create({
+      ...weather,
+      aiRecommendation: recommendation
+    });
+
+    res.status(200).json({
+      success: true,
+      data: savedWeather
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  getWeather
+};
+
+9. Routes
+src/routes/weatherRoutes.js
+const express = require("express");
+
+const {
+  getWeather
+} = require("../controllers/weatherController");
+
+const router = express.Router();
+
+router.get("/", getWeather);
+
+module.exports = router;
+
+10. Error middleware
+src/middleware/errorMiddleware.js
+const errorMiddleware = (err, req, res, next) => {
+  console.error(err);
+
+  res.status(500).json({
+    success: false,
+    message: err.message || "Internal Server Error"
+  });
+};
+
+module.exports = errorMiddleware;
+
+11. Request logger
+src/middleware/requestLogger.js
+const morgan = require("morgan");
+
+module.exports = morgan("dev");
+
+12. Express application
+src/app.js
+const express = require("express");
+const cors = require("cors");
+
+const weatherRoutes = require("./routes/weatherRoutes");
+const errorMiddleware = require("./middleware/errorMiddleware");
+const requestLogger = require("./middleware/requestLogger");
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+app.use(requestLogger);
+
+// Health check
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "AI WeatherWise API is running"
+  });
+});
+
+// API routes
+app.use("/api/weather", weatherRoutes);
+
+// Error handler
+app.use(errorMiddleware);
+
+module.exports = app;
+
+13. Server entry point
+server.js
+require("dotenv").config();
+
+const app = require("./src/app");
+const connectDB = require("./src/config/db");
+
+const PORT = process.env.PORT || 5000;
+
+const startServer = async () => {
+  await connectDB();
+
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+};
+
+startServer();
+
+14. Run the project
+Start MongoDB first, then:
+
+npm run dev
+
+You should see:
+
+MongoDB connected successfully
+Server running on http://localhost:5000
+
+Test the health endpoint:
+
+GET http://localhost:5000/
+
+Response:
+
+{
+  "success": true,
+  "message": "AI WeatherWise API is running"
+}
+
+Test weather:
+
+GET http://localhost:5000/api/weather?city=Chennai
+
+Example response:
+
+{
+  "success": true,
+  "data": {
+    "city": "Chennai",
+    "country": "IN",
+    "temperature": 31.2,
+    "humidity": 72,
+    "description": "clear sky",
+    "aiRecommendation": "The weather looks comfortable. It should be a good time for outdoor activities."
+  }
+}
