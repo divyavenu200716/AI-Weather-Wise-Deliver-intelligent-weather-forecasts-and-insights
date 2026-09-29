@@ -1,0 +1,160 @@
+File: docs/er-diagram.md
+# AI WeatherWise API - ER Diagram
+
+```mermaid
+erDiagram
+
+    USER {
+        ObjectId _id PK
+        string name
+        string email
+        string password
+        string role
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    WEATHER {
+        ObjectId _id PK
+        string city
+        string country
+        float temperature
+        float humidity
+        string description
+        string aiRecommendation
+        ObjectId userId FK
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    WEATHER_HISTORY {
+        ObjectId _id PK
+        ObjectId userId FK
+        string city
+        float temperature
+        float humidity
+        string description
+        string aiRecommendation
+        datetime searchedAt
+    }
+
+    USER ||--o{ WEATHER : "requests"
+    USER ||--o{ WEATHER_HISTORY : "has"
+    WEATHER ||--o{ WEATHER_HISTORY : "creates"
+
+
+### If your project doesn't have user authentication yet
+
+Keep the ER diagram simpler:
+
+**File: `docs/er-diagram.md`**
+
+```markdown
+# AI WeatherWise API - ER Diagram
+
+```mermaid
+erDiagram
+
+    WEATHER {
+        ObjectId _id PK
+        string city
+        string country
+        float temperature
+        float humidity
+        string description
+        string aiRecommendation
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    WEATHER_HISTORY {
+        ObjectId _id PK
+        string city
+        string country
+        float temperature
+        float humidity
+        string description
+        string aiRecommendation
+        datetime searchedAt
+    }
+
+    WEATHER ||--o{ WEATHER_HISTORY : "stored as history"
+
+
+### Recommended project structure
+
+```text
+AI-WeatherWise-API/
+│
+├── docs/
+│   └── er-diagram.md
+│
+├── src/
+│   ├── config/
+│   │   └── db.js
+│   ├── controllers/
+│   │   └── weatherController.js
+│   ├── models/
+│   │   └── weatherModel.js
+│   ├── routes/
+│   │   └── weatherRoutes.js
+│   └── services/
+│       ├── weatherService.js
+│       └── aiService.js
+│
+├── .env
+├── .gitignore
+├── package.json
+└── server.js
+
+Corresponding MongoDB model
+If you're using the first diagram, create:
+
+src/models/weatherModel.js
+
+const mongoose = require("mongoose");
+
+const weatherSchema = new mongoose.Schema(
+  {
+    city: {
+      type: String,
+      required: true,
+      trim: true
+    },
+
+    country: {
+      type: String,
+      trim: true
+    },
+
+    temperature: {
+      type: Number,
+      required: true
+    },
+
+    humidity: {
+      type: Number,
+      required: true
+    },
+
+    description: {
+      type: String
+    },
+
+    aiRecommendation: {
+      type: String
+    },
+
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    }
+  },
+  {
+    timestamps: true
+  }
+);
+
+module.exports = mongoose.model("Weather", weatherSchema);
+
+For your current project, I recommend the simpler diagram if you haven't implemented login/users yet. It keeps the ER diagram consistent with the actual code rather than documenting tables/collections that don't exist yet.
