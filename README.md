@@ -152,6 +152,4 @@ AI-WeatherWise-API/
 For your SkillWallet Project Architecture → README/documentation, this is ready to copy into README.md.
 
 
-No file chosenNo file chosenNo file chosen
 
-Chat with ChatGPT
